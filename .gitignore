@@ -1,0 +1,6 @@
+results/bench/ppl/**/roundtrip.bin
+results/bench/ppl/**/cache_oracle.pt
+results/bench/ppl/**/poly_kv_corpus.json
+target/
+Cargo.lock
+**/*.rs.bak
