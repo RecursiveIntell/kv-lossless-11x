@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you reference this measurement in academic work, please cite it as below."
 type: software
-title: "proveKV: a two-tier, receipted, content-addressed KV-cache pool — lossless at 11.13x on a real 1.7B-parameter LLM"
+title: "kv-lossless-11x: Lossless KV-cache compression at 11.13x on a real 1.7B-parameter LLM"
 version: 1.0.0
 date-released: 2026-06-02
 license: MIT
