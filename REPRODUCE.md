@@ -71,6 +71,48 @@ The script writes three files at the output directory:
 If you only want to verify the smoke (Phase 0 forward pass + PPL, no
 compression) use `ppl_smoke.py` instead — runs in ~30 seconds.
 
+## Reproduce the multi-agent sweep
+
+The multi-agent bench lives in the parent monorepo
+(`RecursiveIntell/Libraries/poly-kv`). The build requires
+`turbo-quant` to be enabled (the shell tier is turbo_8bit),
+which is not enabled in this standalone repo's default features.
+
+**One-time Rust build** (in the parent monorepo, not this repo):
+```bash
+cd ../Libraries/poly-kv
+cargo build --release --example poly_kv_multi_agent_shell
+```
+
+**Per-N run** (use Qwen2.5-0.5B which fits 8 agents on 7.91GB):
+```bash
+# N=2
+mkdir -p bench/multi_agent/qwen2.5-0.5b/n2-shared80
+./target/release/examples/poly_kv_multi_agent_shell \
+  bench/ppl/qwen2.5-0.5b/wikitext-2/poly_kv_corpus.json \
+  bench/multi_agent/qwen2.5-0.5b/n2-shared80 \
+  --n-agents 2 --shared-frac 0.8 --seed 42
+
+# Forward-pass eval (re-uses ppl_multi_agent.py committed in this repo)
+python3 scripts/ppl_multi_agent.py \
+  --model Qwen/Qwen2.5-0.5B-Instruct \
+  --model-slug qwen2.5-0.5b \
+  --corpus wikitext-2 \
+  --n-tokens 1024 \
+  --shared-frac 0.8 \
+  --multi-agent-dir bench/multi_agent/qwen2.5-0.5b/n2-shared80 \
+  --output bench/multi_agent/qwen2.5-0.5b/n2-shared80/state.json
+```
+
+Repeat with `--n-agents 3`, `4`, `6`, `8` to reproduce the full
+scaling sweep. The shared_frac parameter controls how much of the
+prefix is shared vs. agent-specific. The committed runs use 0.8
+(80% shared, 20% partitioned into agent tails).
+
+The scaling_summary.json (committed at
+`results/bench/multi_agent/qwen2.5-0.5b/scaling_summary.json`)
+rolls up the 5 state.jsons into a single scaling curve.
+
 ## Verify the build independently
 
 ```bash
