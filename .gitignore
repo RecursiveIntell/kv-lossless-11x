@@ -1,6 +1,6 @@
 results/bench/ppl/**/roundtrip.bin
 results/bench/ppl/**/cache_oracle.pt
-results/bench/ppl/**/poly_kv_corpus.json
+results/bench/ppl/**/prove_kv_corpus.json
 results/bench/multi_agent/**/shared_kv.bin
 results/bench/multi_agent/**/agent_*_kv.bin
 target/

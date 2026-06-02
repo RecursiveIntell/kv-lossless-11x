@@ -183,7 +183,7 @@ See `CHANGELOG.md` for the release history.
 - `turbo-quant` — historically had a `gpu` feature that was
   removed in v0.2.0 because the dispatch overhead negated
   the kernel speedup; the kernels live here for future use.
-- `poly-kv` — gates the GPU codebook lookup path on this
+- `proveKV` — gates the GPU codebook lookup path on this
   crate's `gpu` feature.
 
 Any system that needs a parity-verified GPU Hadamard or

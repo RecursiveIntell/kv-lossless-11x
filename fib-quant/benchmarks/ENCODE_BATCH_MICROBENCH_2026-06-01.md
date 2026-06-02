@@ -55,7 +55,7 @@ engage, so all three configs are identical CPU.
   the current dispatch path. It's parity-verified and ready, but the
   per-call H2D/D2H overhead negates any savings.
 - The Hadamard-only GPU path is a **modest 2-7% win** on the encode
-  pipeline, matching what we saw in the poly-kv pool build.
+  pipeline, matching what we saw in the proveKV pool build.
 - A 10× win on d=2560 encode_batch would require something other than
   a faster Hadamard: parallelizing the nearest_index loop, a
   device-side pipeline, or batching many encode_batch calls together.
@@ -89,5 +89,5 @@ cargo run --release --example encode_batch_microbench \
 ```
 
 Note: `combined.ptx` must be present in `gpu-backend/kernels/` or
-gpu dispatch falls back to CPU. See poly-kv/benchmarks/GPU_BENCH_RESULTS_2026-06-01.md
+gpu dispatch falls back to CPU. See proveKV/benchmarks/GPU_BENCH_RESULTS_2026-06-01.md
 for the build instructions.

@@ -16,7 +16,7 @@ f32 vector (3,072 bytes) becomes ~860 bytes in JSON, or
 ~64 bytes with binary packing. And it still finds the right
 document at rank 1 in 100% of the canonical test queries.
 
-This is the **cold-tier codec** in the poly-kv pool. It
+This is the **cold-tier codec** in the proveKV pool. It
 handles shared context that's large, stable, and accessed by
 many agents:
 
@@ -38,7 +38,7 @@ many agents:
 - **Codecs** (`src/codec.rs`, 842 lines) — `FibQuantizer`
   with `encode`, `decode`, `encode_batch`, `decode_batch`.
   The `encode_batch` is the Rayon-parallel path that wins
-  the poly-kv pool build.
+  the proveKV pool build.
 - **Codebook** (`src/codebook.rs`, 204 lines) —
   `LloydRefinement` of a Fibonacci-sampled seed codebook.
   Parity-verified against the reference.
@@ -115,14 +115,14 @@ the binary wire format.**
 | exact_scan (no compression) | 1.000 | 1.000 | 1.000 | — |
 | **fib-quant only** | **1.000** | **1.000** | **1.000** | **0.33** |
 | turbo-quant only | 1.000 | 1.000 | 1.000 | 0.03 |
-| poly-kv (two-tier) | 1.000 | 1.000 | 1.000 | 0.25 |
+| proveKV (two-tier) | 1.000 | 1.000 | 1.000 | 0.25 |
 
 **Cosine fidelity: 0.863** (single vector), **0.9996** (after
-turbo-quant rerank in poly-kv).
+turbo-quant rerank in proveKV).
 
 ### Encode_batch throughput — "Do All" perf pass 2026-06-01
 
-The `encode_batch` loop is the dominant cost in the poly-kv
+The `encode_batch` loop is the dominant cost in the proveKV
 pool build. After the June 1 perf pass (AVX2+FMA SIMD +
 Rayon):
 
@@ -132,7 +132,7 @@ Rayon):
 | nomic 768 n=80 | 4552ms | 94ms | 407ms | **133ms** (34×) |
 | qwen3 2560 n=4 | 1449ms | 418ms | 893ms | **256ms** (5.7×) |
 
-Numbers from `poly-kv/benchmarks/DO_ALL_PERF_PASS_2026-06-01.md`.
+Numbers from `proveKV/benchmarks/DO_ALL_PERF_PASS_2026-06-01.md`.
 
 ### GPU path — measured
 
@@ -215,7 +215,7 @@ test suite are original to this implementation.
 
 `fib-quant` is the cold-tier codec for:
 
-- `poly-kv` — the shared pool is fib-quant compressed.
+- `proveKV` — the shared pool is fib-quant compressed.
   Every shared system prompt, every shared few-shot example,
   every shared doc goes through `encode_batch`.
 - `semantic-memory` — when `AdmissibilityClass::Standard` is

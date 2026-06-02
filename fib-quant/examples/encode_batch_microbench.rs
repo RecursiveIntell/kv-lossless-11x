@@ -72,7 +72,7 @@ fn main() {
     println!("compile-time: gpu feature = {}", cfg!(feature = "gpu"));
     println!();
 
-    // Paper-default for poly-kv pool: k=4, N=32, dim 64/128/2560
+    // Paper-default for proveKV pool: k=4, N=32, dim 64/128/2560
     // Note: d=2560 is included but each run takes ~30s on CPU; the bench
     // is meant for A/B comparison, so all three configs pay the same cost.
     println!("=== paper_default(k=4, N=32) ===");

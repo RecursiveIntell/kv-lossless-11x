@@ -41,7 +41,7 @@ validation run.
     "ppl_window": [716, 1023],
     "roundtrip_bin": "bench/ppl/.../roundtrip.bin",// compressed cache artifact
     "roundtrip_bin_bytes": 1102338606,             // file size
-    "manifest": {                                  // poly-kv pool manifest
+    "manifest": {                                  // proveKV pool manifest
       "pool_id": "fcaece76b1...5f99",              // blake3 content-address
       "num_shared_tokens": 1024,
       "num_layers": 24,

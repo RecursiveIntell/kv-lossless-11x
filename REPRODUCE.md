@@ -34,7 +34,7 @@ pool_size_bytes   = 36,175,872 (36.2 MB)
 
 You can also `cat results/bench/ppl/smollm2-1.7b/wikitext-2/report.md`
 for the human-readable version, or read `pool_manifest.json` for just
-the poly-kv pool manifest extracted from the 1.1GB `roundtrip.bin`.
+the proveKV pool manifest extracted from the 1.1GB `roundtrip.bin`.
 
 ## Reproduce from scratch on a GPU host (5-10 minutes)
 
@@ -47,11 +47,11 @@ and `Salesforce/wikitext`.
 git clone https://github.com/RecursiveIntell/kv-lossless-11x
 cd kv-lossless-11x
 
-# 2. Build the Rust CLI (FibQuant codec + poly-kv pool + fast roundtrip)
-cargo build --release --example poly_kv_fast_roundtrip
+# 2. Build the Rust CLI (FibQuant codec + proveKV pool + fast roundtrip)
+cargo build --release --example prove_kv_fast_roundtrip
 
 # 3. Run the full Phase 0 / Phase 1 / Phase 2 validation
-cd poly-kv/scripts
+cd proveKV/scripts
 mkdir -p ../../results/bench/ppl/smollm2-1.7b/wikitext-2
 PYTORCH_ALLOC_CONF=expandable_segments:True \
   python3 ppl_validate.py \
@@ -66,7 +66,7 @@ The script writes three files at the output directory:
 
 - `state.json` — the receipts (compare against the committed one)
 - `report.md` — the human-readable report
-- `roundtrip.bin` — the poly-kv pool + decompressed layer blobs (1.1 GB)
+- `roundtrip.bin` — the proveKV pool + decompressed layer blobs (1.1 GB)
 
 If you only want to verify the smoke (Phase 0 forward pass + PPL, no
 compression) use `ppl_smoke.py` instead — runs in ~30 seconds.
@@ -74,22 +74,22 @@ compression) use `ppl_smoke.py` instead — runs in ~30 seconds.
 ## Reproduce the multi-agent sweep
 
 The multi-agent bench lives in the parent monorepo
-(`RecursiveIntell/Libraries/poly-kv`). The build requires
+(`RecursiveIntell/Libraries/proveKV`). The build requires
 `turbo-quant` to be enabled (the shell tier is turbo_8bit),
 which is not enabled in this standalone repo's default features.
 
 **One-time Rust build** (in the parent monorepo, not this repo):
 ```bash
-cd ../Libraries/poly-kv
-cargo build --release --example poly_kv_multi_agent_shell
+cd ../Libraries/proveKV
+cargo build --release --example prove_kv_multi_agent_shell
 ```
 
 **Per-N run** (use Qwen2.5-0.5B which fits 8 agents on 7.91GB):
 ```bash
 # N=2
 mkdir -p bench/multi_agent/qwen2.5-0.5b/n2-shared80
-./target/release/examples/poly_kv_multi_agent_shell \
-  bench/ppl/qwen2.5-0.5b/wikitext-2/poly_kv_corpus.json \
+./target/release/examples/prove_kv_multi_agent_shell \
+  bench/ppl/qwen2.5-0.5b/wikitext-2/prove_kv_corpus.json \
   bench/multi_agent/qwen2.5-0.5b/n2-shared80 \
   --n-agents 2 --shared-frac 0.8 --seed 42
 
@@ -115,7 +115,7 @@ rolls up the 5 state.jsons into a single scaling curve.
 
 ## Reproduce the hot-tier quality and memory bench
 
-The hot-tier bench uses the same `poly_kv_multi_agent_shell` Rust
+The hot-tier bench uses the same `prove_kv_multi_agent_shell` Rust
 example with the `--shell-bits` flag. To isolate the shell tier
 (set `shared_frac=0.0625` so the shared pool is just 64 tokens
 and the agent shell covers the remaining 960 tokens):
@@ -125,8 +125,8 @@ and the agent shell covers the remaining 960 tokens):
 for bits in 2 4 8; do
   out=bench/multi_agent/qwen2.5-0.5b/n1-shell94-b${bits}
   mkdir -p "$out"
-  ./target/release/examples/poly_kv_multi_agent_shell \
-    bench/ppl/qwen2.5-0.5b/wikitext-2/poly_kv_corpus.json "$out" \
+  ./target/release/examples/prove_kv_multi_agent_shell \
+    bench/ppl/qwen2.5-0.5b/wikitext-2/prove_kv_corpus.json "$out" \
     --n-agents 1 --shared-frac 0.0625 --seed 42 --shell-bits ${bits}
   python3 scripts/ppl_multi_agent.py \
     --model Qwen/Qwen2.5-0.5B-Instruct \
@@ -138,8 +138,8 @@ done
 for bits in 2 8; do
   out=bench/multi_agent/smollm2-1.7b/n1-shell94-b${bits}
   mkdir -p "$out"
-  ./target/release/examples/poly_kv_multi_agent_shell \
-    bench/ppl/smollm2-1.7b/wikitext-2/poly_kv_corpus.json "$out" \
+  ./target/release/examples/prove_kv_multi_agent_shell \
+    bench/ppl/smollm2-1.7b/wikitext-2/prove_kv_corpus.json "$out" \
     --n-agents 1 --shared-frac 0.0625 --seed 42 --shell-bits ${bits}
   python3 scripts/ppl_multi_agent.py \
     --model HuggingFaceTB/SmolLM2-1.7B-Instruct \
@@ -159,8 +159,8 @@ shared_frac):
 for sf in 0.5 0.95; do
   out=bench/multi_agent/smollm2-1.7b/n2-shared${sf}-b2
   mkdir -p "$out"
-  ./target/release/examples/poly_kv_multi_agent_shell \
-    bench/ppl/smollm2-1.7b/wikitext-2/poly_kv_corpus.json "$out" \
+  ./target/release/examples/prove_kv_multi_agent_shell \
+    bench/ppl/smollm2-1.7b/wikitext-2/prove_kv_corpus.json "$out" \
     --n-agents 2 --shared-frac ${sf} --seed 42 --shell-bits 2
   python3 scripts/ppl_multi_agent.py \
     --model HuggingFaceTB/SmolLM2-1.7B-Instruct \
@@ -221,8 +221,8 @@ python3 ppl_validate.py \
   --output ../../results/bench/ppl/qwen2.5-0.5b/wikitext-2/state.json
 
 # Cross-corpus run (code-source slice)
-echo "poly-kv README + Cargo.toml + first 5 src files" > /tmp/code_corpus.txt
-# (See poly-kv/scripts/build_poly_kv_corpus.py invocation; the corpus
+echo "proveKV README + Cargo.toml + first 5 src files" > /tmp/code_corpus.txt
+# (See proveKV/scripts/build_prove_kv_corpus.py invocation; the corpus
 # is any UTF-8 text ≥ n_tokens tokens)
 python3 ppl_validate.py \
   --model HuggingFaceTB/SmolLM2-1.7B-Instruct \
@@ -251,9 +251,9 @@ time on the test host).
 
 - Multi-agent sharing (the pool is built once but the multi-agent
   injection path via `materialize_shell` is not exercised). The
-  `materialize_shell` API exists in `poly-kv/src/shell.rs:68` and
+  `materialize_shell` API exists in `proveKV/src/shell.rs:68` and
   is called via `pool.materialize_shell(...)` in
-  `poly-kv/src/pool.rs:276`. Open work.
+  `proveKV/src/pool.rs:276`. Open work.
 - Cross-model beyond Qwen2.5-0.5B-Instruct (SmolLM2-1.7B,
   TinyLlama-1.1B, Qwen2.5-0.5B are validated; Qwen-7B+ OOMs on
   7.91GB; Llama-3.2-1B is gated and needs HF auth)

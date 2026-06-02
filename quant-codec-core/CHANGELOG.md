@@ -42,5 +42,5 @@ First crates.io release.
 - Serde round-trip for all public types.
 - Trait mock compile test.
 
-[Unreleased]: https://github.com/RecursiveIntell/Libraries/tree/main/poly-kv/crates/quant-codec-core/compare/quant-codec-core-v0.1.0-alpha.1...HEAD
-[0.1.0-alpha.1]: https://github.com/RecursiveIntell/Libraries/tree/main/poly-kv/crates/quant-codec-core/releases/tag/quant-codec-core-v0.1.0-alpha.1
+[Unreleased]: https://github.com/RecursiveIntell/Libraries/tree/main/proveKV/crates/quant-codec-core/compare/quant-codec-core-v0.1.0-alpha.1...HEAD
+[0.1.0-alpha.1]: https://github.com/RecursiveIntell/Libraries/tree/main/proveKV/crates/quant-codec-core/releases/tag/quant-codec-core-v0.1.0-alpha.1

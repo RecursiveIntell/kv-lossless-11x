@@ -1,13 +1,15 @@
-# kv-lossless-11x
+# proveKV
 
-**Lossless KV-cache compression at 11.13× on a real 1.7B-parameter LLM.**
+**A two-tier, receipted, content-addressed KV-cache pool — lossless at 11.13× on a real 1.7B-parameter LLM.**
 
-This repository is a self-contained, runnable proof of a single measured result:
+The pool is the system. The codecs are the primitives. This repository
+is a self-contained, runnable proof of a single measured result on the
+shared (cold) tier of the system:
 
 > On `HuggingFaceTB/SmolLM2-1.7B-Instruct` with the first 1024 tokens of
-> the WikiText-2 test split, the **fib_k4_n32** codec (clean-room Rust
-> port of the [FibQuant paper](https://arxiv.org/abs/2605.11478), Lee & Kim
-> 2026) achieves:
+> the WikiText-2 test split, the shared-tier **fib_k4_n32** codec (clean-
+> room Rust port of the [FibQuant paper](https://arxiv.org/abs/2605.11478),
+> Lee & Kim 2026) achieves:
 >
 > - **Compression ratio: 11.13×** vs fp32 raw (5.6× vs fp16 raw)
 > - **Pool size: 36,175,872 bytes (36 MB)**, down from 201,341,281 bytes
@@ -15,16 +17,33 @@ This repository is a self-contained, runnable proof of a single measured result:
 > - **ΔPPL: +0.00%** — the roundtrip K/V cache is bit-exact to the oracle
 >   forward pass at 4-decimal PPL precision
 
-The claim is **honest lossless at 11× on real LLM K/V** — not a synthetic
-benchmark, not a 50× headline, not a lossy codec at higher compression.
+The claim is **honest lossless at 11.13× on real LLM K/V** — not a
+synthetic benchmark, not a 50× headline, not a lossy codec at higher
+compression.
+
+## What is and is not unique to this system
+
+The codec math (`fib_k4_n32`) is a port of the FibQuant paper; the
+algorithm belongs to Lee & Kim (2026). What belongs to this system:
+
+- the **two-tier pool architecture** (shared cold + per-agent hot),
+- the **receipted, content-addressed, build-once pool primitive** with
+  the audit trail as the runtime contract,
+- the **compact binary wire format** that made 11.13× a real number
+  instead of a 0.5× JSON-overhead result,
+- the **measured 11.13× lossless headline** on three model families
+  (SmolLM2-1.7B, TinyLlama-1.1B, Qwen2.5-0.5B) at 4-decimal PPL.
+
+The naming and brand doctrine is recorded in
+[`docs/SYSTEM_NAMING_AND_BRANDING.md`](docs/SYSTEM_NAMING_AND_BRANDING.md).
 
 ## Reproduce it in five minutes
 
 ```bash
-git clone https://github.com/RecursiveIntell/kv-lossless-11x
-cd kv-lossless-11x
-cargo build --release --example poly_kv_fast_roundtrip
-cd poly-kv/scripts
+git clone https://github.com/RecursiveIntell/proveKV
+cd proveKV
+cargo build --release --example prove_kv_fast_roundtrip
+cd proveKV/scripts
 PYTORCH_ALLOC_CONF=expandable_segments:True \
   python3 ppl_validate.py \
     --model HuggingFaceTB/SmolLM2-1.7B-Instruct \
@@ -57,7 +76,7 @@ The `state.json` carries the receipts:
 - `phase1.ppl = 4.760762087094494` — roundtrip PPL, **byte-identical** to oracle
 - `phase1.delta_ppl_pct = 0.0` — zero quality loss
 - `phase1.manifest.compression_ratio = 11.130434782608695` — measured, not ideal
-- `phase1.manifest.pool_size_bytes = 36175872` — 36 MB actual poly-kv pool
+- `phase1.manifest.pool_size_bytes = 36175872` — 36 MB actual proveKV pool
 - `phase1.manifest.pool_id` — content-addressed blake3 digest of the pool
 - `phase1.manifest.shared_codec = "fib_k4_n32"` — the codec identity
 - `phase1.roundtrip_cli_seconds = 76.65` — build + decompress wall time
@@ -82,7 +101,7 @@ corpus, n_tokens)` to test the claim generalizes.
 
 **The compression ratio is invariant across all five runs at exactly
 11.13×.** The codec is lossless for every model (SmolLM2, TinyLlama,
-Qwen2.5), every corpus (WikiText-2, poly-kv source code), and every
+Qwen2.5), every corpus (WikiText-2, proveKV source code), and every
 context (1024, 1280 tokens). Pool size scales with `(num_layers ×
 num_kv_heads × n_tokens × head_dim)` and tracks the raw cache size.
 
@@ -146,11 +165,11 @@ forward pass (no sharing).
 - Corpus: WikiText-2 (test split), first 1024 tokens
 - Shared prefix: 819 tokens (80%); each agent gets the
   remaining 205 tokens partitioned into N tails
-- Build: `poly_kv_multi_agent_shell` (Rust example, in the
+- Build: `prove_kv_multi_agent_shell` (Rust example, in the
   `RecursiveIntell/Libraries` monorepo at
-  `poly-kv/examples/poly_kv_multi_agent_shell.rs`)
+  `proveKV/examples/prove_kv_multi_agent_shell.rs`)
 - Eval: `ppl_multi_agent.py` (committed at
-  `poly-kv/scripts/ppl_multi_agent.py`)
+  `proveKV/scripts/ppl_multi_agent.py`)
 
 **Why this matters:** the shared pool is built ONCE and reused
 across all N agents. Per-agent overhead is only the shell (the
@@ -241,7 +260,7 @@ This is open work #6 in the list below.
 
 **Is:**
 - A clean-room Rust port of the FibQuant codec (Lee & Kim, arXiv 2605.11478,
-  May 2026), wrapped by a poly-kv pool that emits a content-addressed manifest
+  May 2026), wrapped by a proveKV pool that emits a content-addressed manifest
 - A real measurement of compression ratio and ΔPPL on a real LLM K/V cache
   from a real forward pass
 - Deterministic: seed 42, fixed corpus slice, fixed n_tokens, fixed n_layers.
@@ -258,7 +277,7 @@ This is open work #6 in the list below.
   The FibQuant paper's own comparison is at b=2 vs scalar TurboQuant at
   b=2; we do not re-run that here.
 - A multi-agent validation. The `materialize_shell` API exists in
-  source (`poly-kv/src/shell.rs:68`) and compiles, but no example
+  source (`proveKV/src/shell.rs:68`) and compiles, but no example
   wires it into a forward pass yet. A multi-agent run is open work
   (see "Open work" below).
 - A claim about Llama-3, Qwen-7B+, Qwen-72B, Phi, Mistral, GPT-2,
@@ -285,8 +304,8 @@ This is open work #6 in the list below.
    is the FibQuant paper's: "fib at b=2 vs scalar TurboQuant at b=2,
    same model". That bench is the paper's claim, not reproduced here.
 3. **Cross-corpus with a real public corpus** — the `code-source`
-   corpus is a slice of the poly-kv repo (provenance:
-   `poly-kv/README.md` + `poly-kv/Cargo.toml` + first 5 src files).
+   corpus is a slice of the proveKV repo (provenance:
+   `proveKV/README.md` + `proveKV/Cargo.toml` + first 5 src files).
    A public-corpus variant would be `Salesforce/wikitext-2`
    with a different split, or `c4`, or `pg19`. The framework
    supports `--corpus file:/path/to/text` for any text file.
@@ -314,18 +333,18 @@ This is open work #6 in the list below.
 
 ```
 .
-├── Cargo.toml                          # workspace: fib-quant + poly-kv + gpu-backend + quant-codec-core
+├── Cargo.toml                          # workspace: fib-quant + proveKV + gpu-backend + quant-codec-core
 ├── fib-quant/                          # clean-room Rust port of FibQuant
 │   ├── src/                            # codec, codebook, rotation, spherical-Beta, Lloyd-Max
 │   ├── tests/                          # parity, determinism, corruption-rejection tests
 │   └── examples/                       # encode/decode microbenches
-├── poly-kv/                            # shared compressed KV-cache pool
+├── proveKV/                            # shared compressed KV-cache pool
 │   ├── src/                            # pool, manifest, codec adapter (FibQuant only here)
 │   ├── examples/
-│   │   └── poly_kv_fast_roundtrip.rs   # the CLI: corpus.json → roundtrip.bin
+│   │   └── prove_kv_fast_roundtrip.rs   # the CLI: corpus.json → roundtrip.bin
 │   └── scripts/
 │       ├── ppl_smoke.py                # pre-flight: load model, check cuda, do 1 forward
-│       ├── build_poly_kv_corpus.py     # cache_oracle.pt → poly_kv_corpus.json
+│       ├── build_prove_kv_corpus.py     # cache_oracle.pt → prove_kv_corpus.json
 │       └── ppl_validate.py             # the full Phase 0/1/2 validation
 ├── quant-codec-core/                   # shared traits (codec, profile, shape, digest)
 ├── gpu-backend/                        # CUDA stubs (no-op without the `gpu` feature)
@@ -339,7 +358,7 @@ This is open work #6 in the list below.
 ## Methodology (locked; do not deviate)
 
 The full methodology is documented inline in
-[`poly-kv/scripts/ppl_validate.py`](poly-kv/scripts/ppl_validate.py). The
+[`proveKV/scripts/ppl_validate.py`](proveKV/scripts/ppl_validate.py). The
 abbreviated version:
 
 **Phase 0 — Oracle forward pass:**
@@ -353,10 +372,10 @@ abbreviated version:
 6. Free the model and the cache from GPU
 
 **Phase 1 — Compressed roundtrip:**
-1. Build the poly-kv corpus JSON from the saved cache: per-token vectors
+1. Build the proveKV corpus JSON from the saved cache: per-token vectors
    of length 98304 (24 layers × 32 heads × 128 = 32 heads × 64 dim for
    K plus V concatenated across layers)
-2. Run `poly_kv_fast_roundtrip` on the corpus: builds the pool with
+2. Run `prove_kv_fast_roundtrip` on the corpus: builds the pool with
    the `fib_k4_n32` codec, then decompresses in parallel (rayon +
    `decode_batch_fast` path) and writes `roundtrip.bin`
 3. Read the manifest from `roundtrip.bin` and verify
@@ -387,8 +406,8 @@ abbreviated version:
 
 ## Two-tier architecture: what's measured and what isn't
 
-The `poly-kv` source defines a two-tier compression policy
-(`CompressionPolicy::default_two_tier()` in `poly-kv/src/policy.rs:150`):
+The `proveKV` source defines a two-tier compression policy
+(`CompressionPolicy::default_two_tier()` in `proveKV/src/policy.rs:150`):
 
 - **Shared pool (cold tier)** — `shared_codec: "fib_k4_n32"`. The
   immutable, content-addressed pool of K/V tensors for the shared
@@ -397,14 +416,14 @@ The `poly-kv` source defines a two-tier compression policy
 - **Agent shell (hot tier)** — `shell_codec: "turbo_8bit"`. Per-agent
   decompressed shell layers, decompressed on read into the agent's
   own `DynamicCache` via `materialize_shell()`. This tier is defined
-  in source (`TurboAdapter` in `poly-kv/src/codec.rs:159`,
-  `materialize_shell` in `poly-kv/src/pool.rs:276`) and compiles, but
+  in source (`TurboAdapter` in `proveKV/src/codec.rs:159`,
+  `materialize_shell` in `proveKV/src/pool.rs:276`) and compiles, but
   **was not exercised in the 11.13× / 0.00% PPL run**. The PPL
   validation only built and roundtripped the shared pool.
 
 The honest claim is therefore:
 
-> **The shared-pool (cold) tier of the poly-kv two-tier design
+> **The shared-pool (cold) tier of the proveKV two-tier design
 > achieves 11.13× lossless compression (5.6× vs fp16) on SmolLM2-1.7B
 > K/V cache, with bit-exact ΔPPL=+0.00%. The hot tier (turbo_8bit
 > per-agent shells) is defined in source but was not benchmarked in
@@ -483,17 +502,17 @@ Both fixes are tested in `fib-quant/tests/compact_bytes_roundtrip.rs` and
 | Component | Source | License |
 |---|---|---|
 | `fib-quant/` | Clean-room Rust port of FibQuant (Lee & Kim, arXiv 2605.11478, 2026) | Apache-2.0 |
-| `poly-kv/` | The original poly-kv crate from `RecursiveIntell/Libraries`, slimmed to fib-only features | MIT |
+| `proveKV/` | The original proveKV crate from `RecursiveIntell/Libraries`, slimmed to fib-only features | MIT |
 | `quant-codec-core/` | The original `quant-codec-core` from `RecursiveIntell/Libraries` | MIT OR Apache-2.0 |
 | `gpu-backend/` | The original `gpu-backend` from `RecursiveIntell/Libraries` (CPU-only stub here) | (per upstream) |
 | `ppl_validate.py` | Original to this repo, written for this validation | MIT |
-| `build_poly_kv_corpus.py` | Original to the poly-kv crate; copied here | MIT |
-| `ppl_smoke.py` | Original to the poly-kv crate; copied here | MIT |
+| `build_prove_kv_corpus.py` | Original to the proveKV crate; copied here | MIT |
+| `ppl_smoke.py` | Original to the proveKV crate; copied here | MIT |
 | `state.json` | Generated by the run on 2026-06-02 | n/a |
 | `report.md` | Generated by the run on 2026-06-02 | n/a |
 
-The "original to the poly-kv crate" scripts are unmodified copies of
-files that live in `RecursiveIntell/Libraries/poly-kv/scripts/`.
+The "original to the proveKV crate" scripts are unmodified copies of
+files that live in `RecursiveIntell/Libraries/proveKV/scripts/`.
 
 ## Cross-paper comparison (for context only)
 
@@ -518,13 +537,13 @@ claim, not one we've reproduced here.
 
 1. `results/bench/ppl/smollm2-1.7b/wikitext-2/state.json` — the receipts
 2. `results/bench/ppl/smollm2-1.7b/wikitext-2/report.md` — the report
-3. `poly-kv/scripts/ppl_validate.py` — the methodology (locked; do not
+3. `proveKV/scripts/ppl_validate.py` — the methodology (locked; do not
    deviate without updating the methodology in this README too)
 4. `fib-quant/src/codec.rs` — the codec math
-5. `poly-kv/src/codec.rs` — the FibQuant adapter inside poly-kv
+5. `proveKV/src/codec.rs` — the FibQuant adapter inside proveKV
 
 ## License
 
 This standalone proof repo is MIT-licensed. Sub-crates retain their
-upstream licenses (Apache-2.0 for fib-quant, MIT for poly-kv, MIT OR
+upstream licenses (Apache-2.0 for fib-quant, MIT for proveKV, MIT OR
 Apache-2.0 for quant-codec-core).

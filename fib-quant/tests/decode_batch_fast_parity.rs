@@ -1,7 +1,7 @@
 //! Parity test: `decode_batch_fast` must produce byte-identical output to
 //! per-call `decode` (within f32 epsilon, since both end with `as f32`).
 //!
-//! The fast path is used by poly-kv roundtrip CLI for the PPL validation
+//! The fast path is used by proveKV roundtrip CLI for the PPL validation
 //! to make 1.5M-block decompresses tractable. Any silent divergence here
 //! would invalidate the PPL delta measurement.
 

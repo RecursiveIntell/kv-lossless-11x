@@ -200,7 +200,7 @@ pub fn bitpack(indices: &[u8], bits_per_index: usize) -> Result<Vec<u8>> {
 ///
 /// This is the operation that dominates fib-quant's `encode_batch` after
 /// the Hadamard rotation — for k=4, N=32, d=128, n=80 it runs ~1.5M
-/// argmin computations and is the bottleneck of the poly-kv pool build.
+/// argmin computations and is the bottleneck of the proveKV pool build.
 pub fn codebook_lookup_batch(
     input: &[f32],
     codebook: &[f32],

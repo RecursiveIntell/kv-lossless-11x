@@ -1,7 +1,7 @@
 # quant-codec-core
 
 The smallest stable interface layer shared by the governed
-compression workspace (`poly-kv`, `fib-quant`, `turbo-quant`,
+compression workspace (`proveKV`, `fib-quant`, `turbo-quant`,
 `scr-runtime-compression`, `quant-eval`).
 
 `quant-codec-core` is **boring, deterministic, dependency-light, and
@@ -195,7 +195,7 @@ shape.
 
 - Codec math (lives in `fib-quant`, `turbo-quant`)
 - GPU dispatch (lives in `gpu-backend`)
-- Runtime manifests / receipts (lives in `poly-kv`)
+- Runtime manifests / receipts (lives in `proveKV`)
 - Benchmark runners (lives in `quant-eval`)
 - Adaptive routing (lives in `quant-governor`)
 
@@ -238,7 +238,7 @@ See `CHANGELOG.md` for the release history.
 
 `quant-codec-core` is a foundational dependency of:
 
-- `poly-kv` (the shared KV-cache pool primitive)
+- `proveKV` (the shared KV-cache pool primitive)
 - `fib-quant` (the radial-angular vector codec)
 - `turbo-quant` (the experimental vector compression sidecar)
 - `scr-runtime-compression` (the runtime integration adapter)
