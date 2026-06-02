@@ -164,6 +164,62 @@ abbreviated version:
 | Python | 3.14 + transformers 5.1.0 + torch 2.10.0+cu126 |
 | Rust | 1.75+ (build with `--release`) |
 
+## Two-tier architecture: what's measured and what isn't
+
+The `poly-kv` source defines a two-tier compression policy
+(`CompressionPolicy::default_two_tier()` in `poly-kv/src/policy.rs:150`):
+
+- **Shared pool (cold tier)** — `shared_codec: "fib_k4_n32"`. The
+  immutable, content-addressed pool of K/V tensors for the shared
+  prefix. This is what every reader in a multi-agent setup pulls
+  from. **This tier is what this validation measures.**
+- **Agent shell (hot tier)** — `shell_codec: "turbo_8bit"`. Per-agent
+  decompressed shell layers, decompressed on read into the agent's
+  own `DynamicCache` via `materialize_shell()`. This tier is defined
+  in source (`TurboAdapter` in `poly-kv/src/codec.rs:159`,
+  `materialize_shell` in `poly-kv/src/pool.rs:276`) and compiles, but
+  **was not exercised in the 11.13× / 0.00% PPL run**. The PPL
+  validation only built and roundtripped the shared pool.
+
+The honest claim is therefore:
+
+> **The shared-pool (cold) tier of the poly-kv two-tier design
+> achieves 11.13× lossless compression (5.6× vs fp16) on SmolLM2-1.7B
+> K/V cache, with bit-exact ΔPPL=+0.00%. The hot tier (turbo_8bit
+> per-agent shells) is defined in source but was not benchmarked in
+> this validation.**
+
+What this does not change:
+
+- The 11.13× number is real, measured, and receipts-backed
+- The shared pool IS the larger memory object in any real deployment
+  (it's the per-token-per-layer per-head-per-dim raw cache, stored
+  once and shared; the shell tier is per-agent, smaller, and
+  recomputable)
+- The codec math is correct; the wire format is what made the
+  compression actually appear (the fix below)
+
+What this does change for any multi-agent claim:
+
+- A true multi-agent validation would build the shared pool once,
+  materialize N agent shells (turbo_8bit), inject each into its own
+  forward pass, and report the per-agent PPL. That bench is
+  **not in this repo yet**. The `materialize_shell` API exists and
+  compiles; running it on a multi-agent setup is open work.
+- If you're citing the 11.13× number for a multi-agent deployment,
+  the honest framing is "the shared pool is 11.13× lossless;
+  per-agent shell overhead is incremental and unmeasured here."
+
+If you want a more comprehensive proof at some point, the next bench
+to add is a multi-agent run that:
+1. Builds the shared pool once (this validation, already done)
+2. Spawns N=2..10 agent shells via `materialize_shell`
+3. Runs a forward pass for each agent with shell + shared pool
+4. Reports per-agent PPL delta against a single-agent oracle
+That is a separate validation with a separate `state.json`. The
+current repo contains the per-pool measurement, not the per-shell
+measurement.
+
 ## The two engineering fixes that made 11.13× possible
 
 The codec math was always correct. The wire format and decode hot path were
