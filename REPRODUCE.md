@@ -113,6 +113,63 @@ The scaling_summary.json (committed at
 `results/bench/multi_agent/qwen2.5-0.5b/scaling_summary.json`)
 rolls up the 5 state.jsons into a single scaling curve.
 
+## Reproduce the hot-tier quality and memory bench
+
+The hot-tier bench uses the same `poly_kv_multi_agent_shell` Rust
+example with the `--shell-bits` flag. To isolate the shell tier
+(set `shared_frac=0.0625` so the shared pool is just 64 tokens
+and the agent shell covers the remaining 960 tokens):
+
+```bash
+# Qwen0.5B at b=2, 4, 8 (shell-only)
+for bits in 2 4 8; do
+  out=bench/multi_agent/qwen2.5-0.5b/n1-shell94-b${bits}
+  mkdir -p "$out"
+  ./target/release/examples/poly_kv_multi_agent_shell \
+    bench/ppl/qwen2.5-0.5b/wikitext-2/poly_kv_corpus.json "$out" \
+    --n-agents 1 --shared-frac 0.0625 --seed 42 --shell-bits ${bits}
+  python3 scripts/ppl_multi_agent.py \
+    --model Qwen/Qwen2.5-0.5B-Instruct \
+    --multi-agent-dir "$out" \
+    --output "$out/state.json"
+done
+
+# SmolLM2-1.7B at b=2, 8 (shell-only)
+for bits in 2 8; do
+  out=bench/multi_agent/smollm2-1.7b/n1-shell94-b${bits}
+  mkdir -p "$out"
+  ./target/release/examples/poly_kv_multi_agent_shell \
+    bench/ppl/smollm2-1.7b/wikitext-2/poly_kv_corpus.json "$out" \
+    --n-agents 1 --shared-frac 0.0625 --seed 42 --shell-bits ${bits}
+  python3 scripts/ppl_multi_agent.py \
+    --model HuggingFaceTB/SmolLM2-1.7B-Instruct \
+    --multi-agent-dir "$out" \
+    --output "$out/state.json"
+done
+```
+
+The hot_tier_summary.json (committed at
+`results/bench/multi_agent/hot_tier_summary.json`) rolls up the
+5 shell-only state.jsons into a quality-vs-b table.
+
+For the two-tier memory tradeoff on SmolLM2-1.7B (N=2, varying
+shared_frac):
+
+```bash
+for sf in 0.5 0.95; do
+  out=bench/multi_agent/smollm2-1.7b/n2-shared${sf}-b2
+  mkdir -p "$out"
+  ./target/release/examples/poly_kv_multi_agent_shell \
+    bench/ppl/smollm2-1.7b/wikitext-2/poly_kv_corpus.json "$out" \
+    --n-agents 2 --shared-frac ${sf} --seed 42 --shell-bits 2
+  python3 scripts/ppl_multi_agent.py \
+    --model HuggingFaceTB/SmolLM2-1.7B-Instruct \
+    --shared-frac ${sf} \
+    --multi-agent-dir "$out" \
+    --output "$out/state.json"
+done
+```
+
 ## Verify the build independently
 
 ```bash

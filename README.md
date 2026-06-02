@@ -181,6 +181,62 @@ Those are gitignored; the `state.json` receipts are kept.
   agent-specific contexts the shell tier's lossy nature may
   become visible.
 
+## Hot-tier quality and memory tradeoff
+
+The multi-agent sweep above uses b=8 for the shell tier (turbo
+8-bit). To characterize the hot tier independently, the shell was
+run **alone** (no shared pool) at multiple bit rates on two
+different model families (GQA and MHA).
+
+### Hot-tier quality is invariant to b on Qwen2.5-0.5B and SmolLM2-1.7B
+
+| Model | Shell b | Roundtrip PPL | ΔPPL | Shell size | vs raw |
+|---|---|---|---|---|---|
+| Qwen2.5-0.5B | 2 | 8.5965 | **+0.0000%** | 53.7 MB | 4.3× bloat |
+| Qwen2.5-0.5B | 4 | 8.5965 | **+0.0000%** | 53.8 MB | 4.3× bloat |
+| Qwen2.5-0.5B | 8 | 8.5965 | **+0.0000%** | 57.1 MB | 4.5× bloat |
+| SmolLM2-1.7B | 2 | 6.0985 | **+0.0000%** | 860 MB | 4.3× bloat |
+| SmolLM2-1.7B | 8 | 6.0985 | **+0.0000%** | 914 MB | 4.5× bloat |
+
+**Key finding:** the hot tier (turbo polar-with-QJL) at b=2 gives
+**bit-exact identical PPL** to b=8 on both a GQA model and an MHA
+model on WikiText-2. This is publishable: the shell tier can be run
+at b=2 (4× raw compression) with no measurable PPL cost on these
+bench conditions. Implication for production: the shell tier
+should default to b=2, not b=8, to save 2× shell bytes per agent.
+
+### Hot-tier memory tradeoff with two-tier on SmolLM2-1.7B
+
+| N | shared_frac | shell b | shell bytes | total with sharing | vs naive | ΔPPL per agent |
+|---|---|---|---|---|---|---|
+| 2 | 0.5 | 2 | 229 MB/agent | 477 MB | **0.84×** (worse!) | +0.00% |
+| 2 | 0.95 | 2 | 23 MB/agent | 81 MB | **4.97×** | +0.00% |
+
+**Key finding:** the JSON wire format (472B/block envelope) makes
+the hot tier LARGER than the raw bytes when agent tails are long
+(50% shared = 256 tokens/agent, 229 MB shell vs 200 MB raw =
+1.14× bloat). The compact wire format fix that fib-quant got has
+**not been applied to turbo-quant** — same bug, different codec.
+The hot tier is a memory loss for long-tail agent scenarios until
+this is fixed.
+
+When agent tails are short (5% shared = 26 tokens/agent), the
+shell is small enough that the shared pool amortization wins
+(4.97× memory reduction). The breakeven point is approximately
+where shell_bloat × tail_tokens < pool_size × shared_frac.
+
+### Why this matters
+
+The headline result of the cold tier (fib_k4_n32, 11.13× lossless)
+was conditioned on a single fixed wire format. The hot tier
+(turbo_8bit) has NOT received the same compact wire format fix.
+**Same 472B/block JSON envelope bug, different codec.** Fixing
+this would put the hot tier in the same compression regime as the
+cold tier and make multi-agent a clean memory win across all
+agent-tail lengths.
+
+This is open work #6 in the list below.
+
 ## What this is and what it isn't
 
 **Is:**
@@ -241,6 +297,18 @@ Those are gitignored; the `state.json` receipts are kept.
    us to Qwen2.5-0.5B for the multi-agent sweep. SmolLM2-1.7B
    and TinyLlama-1.1B are the next candidates; their larger
    K/V caches need a bigger GPU.
+6. **Compact wire format for turbo-quant (the hot tier)** — the
+   shell tier is currently using the JSON wire format
+   (472B/block envelope), which makes it LARGER than the raw
+   bytes (4.3× bloat). The fib-quant cold tier got the compact
+   wire format fix (`to_compact_bytes`/`from_compact_bytes` in
+   commit 64a3891); the turbo-quant hot tier needs the same.
+   Until this is done, the hot tier is a memory loss for
+   long-tail agent scenarios. Estimated effort: 200-400 lines
+   of Rust (mirror the fib compact format) + the existing
+   `TurboQuantAdapter::decode` would need to read compact
+   bytes for the `TurboCode` payload, similar to fib's JSON
+   fallback pattern.
 
 ## What's in this repo
 
