@@ -1,5 +1,7 @@
 # ⚠️ Archived — superseded by [proveKV](https://github.com/RecursiveIntell/proveKV)
 
+> **Historical quality-claim correction — October 10, 2026.** The original lossless K/V and ΔPPL +0.00% interpretation below is withdrawn as admissible quality evidence. Full-input/full-cache scoring did not establish held-out continuation quality or bit-exact K/V reconstruction. The codecs are approximate quantizers. The preserved storage receipts remain historical byte measurements, not proof of quality neutrality. The successor's producer-recorded cache-aligned shared-prefix continuation check instead reported oracle PPL 7.203125 versus roundtrip PPL 24.234375 (+236.44%); that aggregate fixture does not establish eight independent-prompt or reconstructed-shell quality. Read the [commit-pinned successor methodology and claim limits](https://github.com/RecursiveIntell/proveKV/tree/9ef62cab05d44f00585ec286557849993912e0f4). Original text, source, and receipts below are retained for audit; they are not current endorsed claims. The published successor crate is named `provekv`, not the historical `prove-kv` spelling in the table below.
+
 This repository is **frozen**. The active development of the two-tier,
 receipted, content-addressed KV-cache pool continues at:
 
@@ -28,6 +30,8 @@ The renaming decision is recorded at
 in the new repo.
 
 ---
+
+> **Withdrawn historical text.** The original section below is preserved verbatim for audit. Its lossless-reconstruction and PPL-neutrality assertions are withdrawn and are not endorsed current findings. See the dated correction above for the evidence boundary.
 
 # kv-lossless-11x
 
